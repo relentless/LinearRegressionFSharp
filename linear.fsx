@@ -7,10 +7,10 @@ open System.IO
 open Checked
 
 let data = 
-    File.ReadAllLines(__SOURCE_DIRECTORY__ + """\transistors.csv""").[1..] 
+    File.ReadAllLines(__SOURCE_DIRECTORY__ + """\brains.csv""").[1..] 
     |> Array.map (fun line -> 
         let values = line.Split(',')
-        (int values.[1]-1970, int64 values.[0]/1000000L))
+        (float (values.[1].Trim()), float (values.[0].Trim())))
 
 let examples = data.Length
 
@@ -19,8 +19,8 @@ let intercept (x,_) = x
 let slope (_,x) = x
 
 // functions for getting values from the x,y values of the data points
-let year (x,_) = x
-let transistorCount (_,x) = x
+let body (x,_) = x
+let brain (_,x) = x
 
 let prediction theta x =
     (theta |> intercept) + (float x) * (theta |> slope)
@@ -29,7 +29,7 @@ let prediction theta x =
 let line theta x_size =
     let y_intercept = theta |> intercept
     let slope' = theta |> slope
-    let point1 = (0, y_intercept)
+    let point1 = (0.0, y_intercept)
     let point2 = x_size, (prediction theta x_size)
     Chart.Line([point1;point2])
 
@@ -37,19 +37,17 @@ let line theta x_size =
 let cost theta =
     data
     |> Array.fold (fun total dataPoint -> 
-        let predicted = prediction theta (dataPoint|> year)
-        let difference = int64 predicted - (dataPoint |> transistorCount)
-        total + (difference * difference)) 0L
-    |> (fun total -> float(total / int64 examples)*2.0)
+        let predicted = prediction theta (dataPoint|> body)
+        let difference = float predicted - (dataPoint |> brain)
+        total + (difference * difference)) 0.0
+    |> (fun total -> float(total / float examples)*2.0)
     
 // find costs for various different slopes (keeping the y-intercept at 0 to make it easier to plot)
 let costs = 
-    [1.0..1.0..50.0]
+    [0.1..0.05..1.0]
     |> List.map (fun x -> x, cost(0.0,x))
 
-let minCost = costs |> List.minBy snd |> snd
-
-Chart.Line(costs, Title="Cost of single-variable Theta", XTitle="Slope", YTitle="Cost").WithYAxis(Min=float minCost)
+Chart.Line(costs, Title="Cost of single-variable Theta", XTitle="Slope", YTitle="Cost")
 
 // minimise cost using gradient descent search
 let gradientDescent initialTheta learningRate maxIterations convergencePct =
@@ -60,18 +58,18 @@ let gradientDescent initialTheta learningRate maxIterations convergencePct =
     let derivCost theta findx =
         data
         |> Array.fold (fun total dataPoint -> 
-            let predicted = prediction theta (dataPoint|> year)
-            let difference = int64 predicted - (dataPoint |> transistorCount)
-            total + (difference * int64 (findx (dataPoint|> year)))) 0L
-        |> (fun total -> float(total / int64 examples))
+            let predicted = prediction theta (dataPoint|> body)
+            let difference = float predicted - (dataPoint |> brain)
+            total + (difference * float (findx (dataPoint|> body)))) 0.0
+        |> (fun total -> float(total / float examples))
 
     let rec descend theta iteration = 
         match iteration < maxIterations with
         | false -> theta
         | _ -> 
             let t0, t1 = theta
-            //printfn "iteration: %i, Theta:%A, cost:%f cost':%f, cost'':%f" iteration theta (cost theta) (cost' theta) (cost'' theta)
-            let newTheta0 = t0 - learningRate * derivCost theta (fun _ -> 1)
+            printfn "iteration: %i, Theta:%A, cost:%f" iteration theta (cost theta)
+            let newTheta0 = t0 - learningRate * derivCost theta (fun _ -> 1.0)
             let newTheta1 = t1 - learningRate * derivCost theta id
             match withinPercent t0 newTheta0 convergencePct, withinPercent t0 newTheta0 convergencePct with
             | true, true -> (newTheta0,newTheta1)
@@ -83,18 +81,18 @@ let gradientDescent initialTheta learningRate maxIterations convergencePct =
 // check gradient descent is working
 let gradCosts = 
     [1..10]
-    |> List.map (fun x -> x, cost(gradientDescent (1.0,1.0) 0.0003 x 1.0))
+    |> List.map (fun x -> x, cost(gradientDescent (0.0,0.0) 0.00001 x 1.0))
 
 Chart.Line(gradCosts, Title="Cost of Theta given by Gradient Descent", XTitle="Iterations", YTitle="Cost")
 
-let finalTheta = gradientDescent (1.0,1.0) 0.0003 20 1.0
+let finalTheta = gradientDescent (0.0,0.0) 0.00001 10 1.0
 
 // see our line
 
-let maxYear = data |> Array.maxBy fst |> fst
+let maxBody = data |> Array.maxBy body |> body
 
 Chart.Combine [
-    Chart.Point(data,Title="Transistor Count by Year (000000's)", XTitle="Years since 1970", YTitle="Transistors")
-    Chart.Line([0,prediction finalTheta 0; maxYear, prediction finalTheta maxYear])
+    Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (Kg)", YTitle="Brain Weight (g)")
+    Chart.Line([0.0,prediction finalTheta 0.0; maxBody, prediction finalTheta maxBody])
     ]
     
