@@ -12,6 +12,8 @@ let data =
         let values = line.Split(',')
         (float (values.[1].Trim()), float (values.[0].Trim())))
 
+Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (Kg)", YTitle="Brain Weight (g)")
+
 let examples = data.Length
 
 // functions for getting values from Theta
@@ -22,6 +24,7 @@ let slope (_,x) = x
 let body (x,_) = x
 let brain (_,x) = x
 
+// the prediction for a given body size based on parameters theta
 let prediction theta x =
     (theta |> intercept) + (float x) * (theta |> slope)
 
