@@ -5,18 +5,19 @@ open FSharp.Charting
 open System.IO
 open Checked
 
-type Parameters = { Intercept:float; Slope:float }
+type DataPoint = { Inhabitants:float; Unemployed:float; Murders:float  }
+type Parameters = { X1:float; X2:float; X3:float; }
 
 // load the dataset
 let data = 
-    File.ReadAllLines(__SOURCE_DIRECTORY__ + """\brains.csv""").[1..] 
+    File.ReadAllLines(__SOURCE_DIRECTORY__ + """\murders.csv""").[1..] 
     |> Array.map (fun line -> 
         let values = line.Split(',')
         (float (values.[1].Trim()), float (values.[0].Trim())))
 
 let exampleCount = float data.Length
 
-Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (kg)", YTitle="Brain Weight (g)")
+Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (Kg)", YTitle="Brain Weight (g)")
 
 // the prediction for a given body size based on parameters theta
 let prediction theta bodyWeight =
@@ -70,9 +71,8 @@ let finalTheta = gradientDescent 0.00001 10
 let maxBody = data |> Array.maxBy fst |> fst
 
 Chart.Combine [
-    Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (kg)", YTitle="Brain Weight (g)")
+    Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (Kg)", YTitle="Brain Weight (g)")
     Chart.Line([0.0,prediction finalTheta 0.0; maxBody, prediction finalTheta maxBody])
     ]
-
-printfn "Prediction of brain size for a mammal with a body weighing 2000kg: %fg" (prediction finalTheta 2000.0)
     
+printfn "Prediction of brain size for a mammal with a body weighing 2000kg: %fg" (prediction finalTheta 2000.0)
