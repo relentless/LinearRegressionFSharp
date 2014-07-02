@@ -5,37 +5,40 @@ open FSharp.Charting
 open System.IO
 open Checked
 
-type DataPoint = { Inhabitants:float; Unemployed:float; Murders:float  }
-type Parameters = { X1:float; X2:float; X3:float; }
-
 // load the dataset
 let data = 
     File.ReadAllLines(__SOURCE_DIRECTORY__ + """\murders.csv""").[1..] 
     |> Array.map (fun line -> 
-        let values = line.Split(',')
-        (float (values.[1].Trim()), float (values.[0].Trim())))
+        line.Split(',')
+        |> Array.map (fun item ->
+            (float (item.Trim()))))
+
+// split the data from the number we're trying to find (which we assume is the last one)
+let data' = 
+    data
+    |> Array.map (fun record ->
+        record.[0..record.Length-2])
+
+let answers = 
+    data
+    |> Array.map (fun record ->
+        record.[record.Length-1])
 
 let exampleCount = float data.Length
 
-Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (Kg)", YTitle="Brain Weight (g)")
+// the prediction for a given set of values based on parameters theta
+let prediction theta values =
+    Array.map2 (fun t v ->
+        t*v) theta values
+    |> Array.sum
 
-// the prediction for a given body size based on parameters theta
-let prediction theta bodyWeight =
-    theta.Intercept + bodyWeight * theta.Slope
-
-// calculates the cost of the parameters theta (y-intercept, slope) in terms of mean squared distance from the data points
+// calculates the cost of the parameters theta  in terms of the mean squared distance from 
+// the predictions they give and the actual data points
 let cost theta =
-    data
-    |> Array.averageBy (fun (body,brain) ->
-        let difference = (prediction theta body) - brain
+    Array.zip data' answers
+    |> Array.averageBy (fun (dataRecord, answer) ->
+        let difference = (prediction theta dataRecord) - answer
         difference * difference)
-    
-// find costs for various different slopes (keeping the y-intercept at 0 to make it easier to plot)
-let costs = 
-    [0.1..0.05..1.0]
-    |> List.map (fun x -> x, cost {Intercept=0.0; Slope=x})
-
-Chart.Line(costs, Title="Cost of single-variable Theta", XTitle="Slope", YTitle="Cost")
 
 // minimise cost using gradient descent search
 let gradientDescent learningRate maxIterations =

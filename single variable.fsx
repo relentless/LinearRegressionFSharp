@@ -22,7 +22,8 @@ Chart.Point(data,Title="Mammal Body vs Brain Weight", XTitle="Body Weight (kg)",
 let prediction theta bodyWeight =
     theta.Intercept + bodyWeight * theta.Slope
 
-// calculates the cost of the parameters theta (y-intercept, slope) in terms of mean squared distance from the data points
+// calculates the cost of the parameters theta (y-intercept, slope) in terms of the mean squared distance from 
+// the predictions they give and the actual data points
 let cost theta =
     data
     |> Array.averageBy (fun (body,brain) ->
