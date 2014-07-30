@@ -7,7 +7,7 @@ open Checked
 
 // load the dataset into an array of arrays of values, and an array of answers
 // (we assume the answer is the last column)
-let data, answers = 
+let originaldata, answers = 
     File.ReadAllLines(__SOURCE_DIRECTORY__ + """\murders.csv""").[1..] 
     |> Array.map (fun line -> 
         line.Split(',')
@@ -17,8 +17,32 @@ let data, answers =
         record.[0..record.Length-2],record.[record.Length-1])
     |> Array.unzip
 
-let exampleCount = float data.Length
-let featureCount = data.[0].Length
+// TOTO: feature scaling (make all values roughly -1 <= x <= 1)
+
+let exampleCount = float originaldata.Length
+
+// subtract average so mean is 0
+let averages = 
+    originaldata 
+    |> Array.reduce (fun totals record -> Array.map2 (+) totals record)
+    |> Array.map (fun total -> total/exampleCount)
+
+let meanZeroData = 
+    originaldata |> Array.map (fun record -> Array.map2 (-) record averages)
+
+// divide each feature by the maximum to make it -1.0 <= x <= 1.0
+
+let maximums = 
+    meanZeroData 
+    |> Array.reduce (fun maximums record -> 
+        Array.map2 (fun x y -> max (abs x) (abs y)) maximums record)
+        
+let scaledDataOriginal = 
+    meanZeroData |> Array.map (fun record -> Array.map2 (/) record maximums)
+
+// Add a first field with value 1.0 to all records, to make later derivative calculations simpler
+let data = scaledDataOriginal |> Array.map (fun x -> Array.append [|1.0|] x)
+//let data = originaldata |> Array.map (fun x -> Array.append [|1.0|] x)
 
 // the prediction for a given set of values based on parameters theta
 let prediction theta values =
@@ -34,17 +58,17 @@ let cost theta =
         let difference = (prediction theta dataRecord) - answer
         difference * difference)
 
-// Create an array for parameters theta.  The first will always be 0, which we use to make
-// calculations more consistent
+// Create an array for parameters theta.  The first will always be 1.0, which we use to make
+// calculations more consistent.  Others are set to random values, because if they are the same,
+// gradient descent will keep them the same
 let blankTheta = 
-    let theta = Array.create featureCount 0.0
-    theta.[0] = 1.0 |> ignore
-    theta
+    let rand = Random()
+    let featureCount = data.[0].Length
+    Array.init featureCount (fun x -> float (rand.Next(100)) / 100.0) 
 
 // minimise cost using gradient descent search
 let gradientDescent learningRate maxIterations =
 
-// TODO : finish?
     let derivativeTheta theta parameter =
         Array.zip data answers
         |> Array.sumBy (fun (dataRecord,answer) ->
@@ -54,7 +78,6 @@ let gradientDescent learningRate maxIterations =
         match iteration < maxIterations with
         | false -> theta
         | _ -> 
-            //printfn "iteration: %i, Theta:%A, cost:%f" iteration theta (cost theta)
             let newTheta = 
                 theta
                 |> Array.map (fun parameter -> 
@@ -67,11 +90,14 @@ let gradientDescent learningRate maxIterations =
 // check gradient descent is working
 let gradCosts = 
     [1..10]
-    |> List.map (fun x -> x, cost(gradientDescent 0.01 x))
+    //|> List.map (fun x -> x, cost(gradientDescent 0.00000001 x)) // with unscaled data, takes > 200 iterations
+    |> List.map (fun x -> x, cost(gradientDescent 0.003 x)) // with scaled data, takes 5 iterations
 
 Chart.Line(gradCosts, Title="Cost of Theta given by Gradient Descent", XTitle="Iterations", YTitle="Cost")
 
 // calculate the parameters theta
-let finalTheta = gradientDescent 0.00001 10
+let finalTheta = gradientDescent 0.003 10
     
-printfn "Prediction of brain size for a mammal with a body weighing 2000kg: %fg" (prediction finalTheta [|2000.0;10.0|])
+printfn "Prediction of brain size for a mammal with a body weighing 2000kg: %fg" (prediction finalTheta [|1.0;2000.0;10.0|])
+
+// TODO: unscale data to make predictions
