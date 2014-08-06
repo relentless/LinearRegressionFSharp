@@ -7,6 +7,8 @@ open Checked
 
 // load the dataset into an array of arrays of values, and an array of answers
 // (we assume the answer is the last column)
+
+// city size, unemployment, annual murders per 100k citizens
 let originaldata, answers = 
     File.ReadAllLines(__SOURCE_DIRECTORY__ + """\murders.csv""").[1..] 
     |> Array.map (fun line -> 
@@ -97,7 +99,17 @@ Chart.Line(gradCosts, Title="Cost of Theta given by Gradient Descent", XTitle="I
 
 // calculate the parameters theta
 let finalTheta = gradientDescent 0.003 10
-    
-printfn "Prediction of brain size for a mammal with a body weighing 2000kg: %fg" (prediction finalTheta [|1.0;2000.0;10.0|])
+
+let scale data =
+    let meanData = Array.map2 (/) data averages
+    let scaledData = Array.map2 (/) meanData maximums
+    scaledData |> Array.append [|1.0|]
+
+let predict theta data =
+    data
+    |> scale
+    |> prediction theta
+
+printfn "Prediction of annual murder rate with a city size of %i and unemployment rate of %f: %f per 100k" 100000 5.0 (predict finalTheta [|100000.0;10.0|])
 
 // TODO: unscale data to make predictions
